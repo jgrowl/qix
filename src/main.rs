@@ -4,7 +4,6 @@ use amethyst::{Application, Event, State, Trans, VirtualKeyCode, WindowEvent};
 use amethyst::asset_manager::AssetManager;
 use amethyst::gfx_device::DisplayConfig;
 use amethyst::ecs::{World, Join, VecStorage, Component, RunArg, System};
-// use amethyst::ecs::{Component, Fetch, FetchMut, Join, System, VecStorage, World, WriteStorage};
 use amethyst::ecs::components::{Mesh, LocalTransform, Texture, Transform};
 use amethyst::ecs::resources::{Camera, InputHandler, Projection, Time};
 use amethyst::ecs::systems::TransformSystem;
@@ -45,16 +44,6 @@ impl State for Qix {
                 far: 1.0,
             };
 
-            // // Get an Orthographic projection
-            // let proj = Projection::Orthographic {
-            //     left: -1.0 * aspect_ratio,
-            //     right: 1.0 * aspect_ratio,
-            //     bottom: -1.0,
-            //     top: 1.0,
-            //     near: 0.0,
-            //     far: 1.0,
-            // };
-
             camera.proj = proj;
             camera.eye = eye;
             camera.target = target;
@@ -75,7 +64,6 @@ impl State for Qix {
         // Create a marker entity
         let mut marker = Marker::new();
         marker.size = 0.02;
-        // ball.velocity = [0.5, 0.5];
         world.create_now()
             .with(square.clone())
             .with(marker)
@@ -152,27 +140,8 @@ impl System<()> for QixSystem {
             w.read_resource::<Camera>(),
             w.read_resource::<Time>(),
             w.read_resource::<InputHandler>())
-            // ,w.write_resource::<Score>()
+                // ,w.write_resource::<Score>()
         });
-
-
-
-
-        // impl System<()> for QixSystem {
-        //     fn run(&mut self, arg: RunArg, _: ()) {
-
-
-        // // Get all needed component storages and resources
-        // // , mut score
-        // let (mut markers, locals, camera, time, input) = arg.fetch(|w| {
-        //     (w.write::<Marker>(),
-        //     w.write::<LocalTransform>(),
-        //     w.read_resource::<Camera>(),
-        //     w.read_resource::<Time>(),
-        //     w.read_resource::<InputHandler>()
-        //     //, w.write_resource::<Score>()
-        //     )
-        // });
 
         // Get left and right boundaries of the screen
         let (left_bound, right_bound, top_bound, bottom_bound) = match camera.proj {
@@ -190,13 +159,13 @@ impl System<()> for QixSystem {
             Right,
             Bottom,
             Left,
-            None
         };
 
         // Process the marker
         for (marker, local) in (&mut markers, &mut locals).join() {
 
-            let mut side: Side = Side::None;
+            let mut side: Side = Side::Bottom;
+
             if marker.position[0] == 0. {
                 side = Side::Left;
             } else if marker.position[1] == 0. {
@@ -289,7 +258,6 @@ impl System<()> for QixSystem {
                 }
             }
 
-
             local.translation[0] = marker.position[0];
             local.translation[1] = marker.position[1];
 
@@ -299,49 +267,46 @@ impl System<()> for QixSystem {
     }
     }
 
-fn gen_rectangle(w: f32, h: f32) -> Vec<VertexPosNormal> {
-    let data: Vec<VertexPosNormal> = vec![VertexPosNormal {
-        pos: [-w / 2., -h / 2., 0.],
-        normal: [0., 0., 1.],
-        tex_coord: [0., 0.],
-    },
-    VertexPosNormal {
-        pos: [w / 2., -h / 2., 0.],
-        normal: [0., 0., 1.],
-        tex_coord: [1., 0.],
-    },
-    VertexPosNormal {
-        pos: [w / 2., h / 2., 0.],
-        normal: [0., 0., 1.],
-        tex_coord: [1., 1.],
-    },
-    VertexPosNormal {
-        pos: [w / 2., h / 2., 0.],
-        normal: [0., 0., 1.],
-        tex_coord: [1., 1.],
-    },
-    VertexPosNormal {
-        pos: [-w / 2., h / 2., 0.],
-        normal: [0., 0., 1.],
-        tex_coord: [1., 1.],
-    },
-    VertexPosNormal {
-        pos: [-w / 2., -h / 2., 0.],
-        normal: [0., 0., 1.],
-        tex_coord: [1., 1.],
-    }];
-    data
-}
+    fn gen_rectangle(w: f32, h: f32) -> Vec<VertexPosNormal> {
+        let data: Vec<VertexPosNormal> = vec![VertexPosNormal {
+            pos: [-w / 2., -h / 2., 0.],
+            normal: [0., 0., 1.],
+            tex_coord: [0., 0.],
+        },
+        VertexPosNormal {
+            pos: [w / 2., -h / 2., 0.],
+            normal: [0., 0., 1.],
+            tex_coord: [1., 0.],
+        },
+        VertexPosNormal {
+            pos: [w / 2., h / 2., 0.],
+            normal: [0., 0., 1.],
+            tex_coord: [1., 1.],
+        },
+        VertexPosNormal {
+            pos: [w / 2., h / 2., 0.],
+            normal: [0., 0., 1.],
+            tex_coord: [1., 1.],
+        },
+        VertexPosNormal {
+            pos: [-w / 2., h / 2., 0.],
+            normal: [0., 0., 1.],
+            tex_coord: [1., 1.],
+        },
+        VertexPosNormal {
+            pos: [-w / 2., -h / 2., 0.],
+            normal: [0., 0., 1.],
+            tex_coord: [1., 1.],
+        }];
+        data
+    }
 
-fn main() {
-    // let marker = Marker::new();
-    //println!("{}", marker.position);
-
-    let config = DisplayConfig::default();
-    let mut game = Application::build(Qix, config)
-        .register::<Marker>()
-        .with::<QixSystem>(QixSystem, "QixSystem", 1)
-        .done();
-    game.run();
-}
+    fn main() {
+        let config = DisplayConfig::default();
+        let mut game = Application::build(Qix, config)
+            .register::<Marker>()
+            .with::<QixSystem>(QixSystem, "QixSystem", 1)
+            .done();
+        game.run();
+    }
 

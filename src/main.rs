@@ -265,48 +265,48 @@ impl System<()> for QixSystem {
             local.scale[1] = marker.size;
         }
     }
-    }
+}
 
-    fn gen_rectangle(w: f32, h: f32) -> Vec<VertexPosNormal> {
-        let data: Vec<VertexPosNormal> = vec![VertexPosNormal {
-            pos: [-w / 2., -h / 2., 0.],
-            normal: [0., 0., 1.],
-            tex_coord: [0., 0.],
-        },
-        VertexPosNormal {
-            pos: [w / 2., -h / 2., 0.],
-            normal: [0., 0., 1.],
-            tex_coord: [1., 0.],
-        },
-        VertexPosNormal {
-            pos: [w / 2., h / 2., 0.],
-            normal: [0., 0., 1.],
-            tex_coord: [1., 1.],
-        },
-        VertexPosNormal {
-            pos: [w / 2., h / 2., 0.],
-            normal: [0., 0., 1.],
-            tex_coord: [1., 1.],
-        },
-        VertexPosNormal {
-            pos: [-w / 2., h / 2., 0.],
-            normal: [0., 0., 1.],
-            tex_coord: [1., 1.],
-        },
-        VertexPosNormal {
-            pos: [-w / 2., -h / 2., 0.],
-            normal: [0., 0., 1.],
-            tex_coord: [1., 1.],
-        }];
-        data
-    }
+fn gen_rectangle(w: f32, h: f32) -> Vec<VertexPosNormal> {
+    let data: Vec<VertexPosNormal> = vec![VertexPosNormal {
+        pos: [-w / 2., -h / 2., 0.],
+        normal: [0., 0., 1.],
+        tex_coord: [0., 0.],
+    },
+    VertexPosNormal {
+        pos: [w / 2., -h / 2., 0.],
+        normal: [0., 0., 1.],
+        tex_coord: [1., 0.],
+    },
+    VertexPosNormal {
+        pos: [w / 2., h / 2., 0.],
+        normal: [0., 0., 1.],
+        tex_coord: [1., 1.],
+    },
+    VertexPosNormal {
+        pos: [w / 2., h / 2., 0.],
+        normal: [0., 0., 1.],
+        tex_coord: [1., 1.],
+    },
+    VertexPosNormal {
+        pos: [-w / 2., h / 2., 0.],
+        normal: [0., 0., 1.],
+        tex_coord: [1., 1.],
+    },
+    VertexPosNormal {
+        pos: [-w / 2., -h / 2., 0.],
+        normal: [0., 0., 1.],
+        tex_coord: [1., 1.],
+    }];
+    data
+}
 
-    fn main() {
-        let config = DisplayConfig::default();
-        let mut game = Application::build(Qix, config)
-            .register::<Marker>()
-            .with::<QixSystem>(QixSystem, "QixSystem", 1)
-            .done();
-        game.run();
-    }
+fn main() {
+    let config = DisplayConfig::default();
+    let mut game = Application::build(Qix, config)
+        .register::<Marker>()
+        .with::<QixSystem>(QixSystem, "QixSystem", 1)
+        .done();
+    game.run();
+}
 

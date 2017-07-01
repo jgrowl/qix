@@ -4,7 +4,10 @@ use amethyst::{Application, Event, State, Trans, VirtualKeyCode, WindowEvent};
 use amethyst::asset_manager::AssetManager;
 use amethyst::gfx_device::DisplayConfig;
 use amethyst::ecs::{World, Join, VecStorage, Component, RunArg, System};
+// use amethyst::ecs::{Component, Fetch, FetchMut, Join, System, VecStorage, World, WriteStorage};
 use amethyst::ecs::components::{Mesh, LocalTransform, Texture, Transform};
+use amethyst::ecs::resources::{Camera, InputHandler, Projection, Time};
+use amethyst::ecs::systems::TransformSystem;
 use amethyst::renderer::{Pipeline, VertexPosNormal};
 
 
@@ -12,7 +15,6 @@ struct Qix;
 
 impl State for Qix {
     fn on_start(&mut self, world: &mut World, assets: &mut AssetManager, pipe: &mut Pipeline) {
-        // println!("Game started!");
         use amethyst::ecs::Gate;
 
         use amethyst::ecs::resources::{Camera, InputHandler, Projection, ScreenDimensions};
@@ -35,13 +37,23 @@ impl State for Qix {
 
             // Get an Orthographic projection
             let proj = Projection::Orthographic {
-                left: -1.0 * aspect_ratio,
-                right: 1.0 * aspect_ratio,
-                bottom: -1.0,
-                top: 1.0,
+                left: 0.0,
+                top: 0.0,
+                right: 1.0,
+                bottom: 1.0,
                 near: 0.0,
                 far: 1.0,
             };
+
+            // // Get an Orthographic projection
+            // let proj = Projection::Orthographic {
+            //     left: -1.0 * aspect_ratio,
+            //     right: 1.0 * aspect_ratio,
+            //     bottom: -1.0,
+            //     top: 1.0,
+            //     near: 0.0,
+            //     far: 1.0,
+            // };
 
             camera.proj = proj;
             camera.eye = eye;
@@ -74,10 +86,16 @@ impl State for Qix {
 
     fn handle_events(&mut self,
                      events: &[WindowEvent],
-                     _: &mut World,
+                     world: &mut World,
                      _: &mut AssetManager,
                      _: &mut Pipeline)
         -> Trans {
+            use amethyst::ecs::Gate;
+            use amethyst::ecs::resources::InputHandler;
+
+            let input = world.write_resource::<InputHandler>();
+            input.pass().update(events);
+
             for e in events {
                 match **e {
                     Event::KeyboardInput(_, _, Some(VirtualKeyCode::Escape)) => return Trans::Quit,
@@ -101,15 +119,15 @@ impl State for Qix {
 struct Marker {
     pub size: f32,
     pub position: [f32; 2],
-    pub velocity: i32
+    pub velocity: f32
 }
 
 impl Marker {
     fn new() -> Marker {
         Marker {
             size: 1.0,
-            position: [0.,0.],
-            velocity: 5
+            position: [0.5,1.0],
+            velocity: 1.
         }
     }
 }
@@ -127,20 +145,34 @@ impl System<()> for QixSystem {
 
         use amethyst::ecs::Gate;
         use amethyst::ecs::resources::{Camera, InputHandler, Projection, Time};
-
-
-        // Get all needed component storages and resources
-        // , planks, locals, time, input, mut score
-        let (mut markers, locals, camera) = arg.fetch(|w| {
+        // mut score
+        let (mut markers, locals, camera, time, input) = arg.fetch(|w| {
             (w.write::<Marker>(),
-            // w.write::<Plank>(),
             w.write::<LocalTransform>(),
             w.read_resource::<Camera>(),
-            // w.read_resource::<Time>(),
-            // w.read_resource::<InputHandler>(),
-            // w.write_resource::<Score>()
-            )
+            w.read_resource::<Time>(),
+            w.read_resource::<InputHandler>())
+            // ,w.write_resource::<Score>()
         });
+
+
+
+
+        // impl System<()> for QixSystem {
+        //     fn run(&mut self, arg: RunArg, _: ()) {
+
+
+        // // Get all needed component storages and resources
+        // // , mut score
+        // let (mut markers, locals, camera, time, input) = arg.fetch(|w| {
+        //     (w.write::<Marker>(),
+        //     w.write::<LocalTransform>(),
+        //     w.read_resource::<Camera>(),
+        //     w.read_resource::<Time>(),
+        //     w.read_resource::<InputHandler>()
+        //     //, w.write_resource::<Score>()
+        //     )
+        // });
 
         // Get left and right boundaries of the screen
         let (left_bound, right_bound, top_bound, bottom_bound) = match camera.proj {
@@ -148,13 +180,116 @@ impl System<()> for QixSystem {
             _ => (1.0, 1.0, 1.0, 1.0),
         };
 
+        let delta_time = time.delta_time.subsec_nanos() as f32 / 1.0e9;
+
         let mut locals = locals.pass();
+
+        #[derive(PartialEq, Eq)]
+        enum Side {
+            Top,
+            Right,
+            Bottom,
+            Left,
+            None
+        };
 
         // Process the marker
         for (marker, local) in (&mut markers, &mut locals).join() {
-            marker.position[0] = 0.;
-            marker.position[1] = 0.;
-                
+
+            let mut side: Side = Side::None;
+            if marker.position[0] == 0. {
+                side = Side::Left;
+            } else if marker.position[1] == 0. {
+                side = Side::Top;
+            } else if marker.position[0] == 1. {
+                side = Side::Right;
+            } else if marker.position[1] == 1. {
+                side = Side::Bottom
+            }
+
+            if side == Side::Bottom {
+                if input.key_down(VirtualKeyCode::Right) {
+                    let new_position = marker.position[0] + marker.velocity * delta_time;
+                    if new_position > 1. {
+                        marker.position[0] = 1.;
+                        marker.position[1] -= marker.velocity * delta_time
+                    } else {
+                        marker.position[0] = new_position;                    
+                    }
+                }
+
+                if input.key_down(VirtualKeyCode::Left) {
+                    let new_position = marker.position[0] - marker.velocity * delta_time;
+                    if new_position < 0. {
+                        marker.position[0] = 0.;
+                        marker.position[1] -= marker.velocity * delta_time
+                    } else {
+                        marker.position[0] = new_position;
+                    }
+                }
+            } else if side == Side::Left {
+                if input.key_down(VirtualKeyCode::Up) {
+                    let position = marker.position[1] - marker.velocity * delta_time;
+                    if position < 0. {
+                        marker.position[1] = 0.;
+                        marker.position[0] += marker.velocity * delta_time
+                    } else {
+                        marker.position[1] = position;
+                    }
+                }
+
+                if input.key_down(VirtualKeyCode::Down) {
+                    let position = marker.position[1] + marker.velocity * delta_time;
+                    if position > 1. {
+                        marker.position[1] = 1.;
+                        marker.position[0] += marker.velocity * delta_time;
+                    } else {
+                        marker.position[1] = position;
+                    }
+                }
+            } else if side == Side::Top {
+                if input.key_down(VirtualKeyCode::Left) {
+                    let position = marker.position[0] - marker.velocity * delta_time;
+                    if position < 0. {
+                        marker.position[0] = 0.;
+                        marker.position[1] += marker.velocity * delta_time
+                    } else {
+                        marker.position[0] = position;
+                    }
+                }
+
+                if input.key_down(VirtualKeyCode::Right) {
+                    let position = marker.position[0] + marker.velocity * delta_time;
+                    if position > 1. {
+                        marker.position[0] = 1.;
+                        marker.position[1] += marker.velocity * delta_time;
+                    } else {
+                        marker.position[0] = position;
+                    }
+                }
+            } else if side == Side::Right {
+                if input.key_down(VirtualKeyCode::Down) {
+                    let position = marker.position[1] + marker.velocity * delta_time;
+                    if position > 1. {
+                        marker.position[1] = 1.;
+                        marker.position[0] -= marker.velocity * delta_time
+                    } else {
+                        marker.position[1] = position;
+                    }
+                }
+
+                if input.key_down(VirtualKeyCode::Up) {
+                    let position = marker.position[1] - marker.velocity * delta_time;
+                    if position < 0. {
+                        marker.position[1] = 0.;
+                        marker.position[0] -= marker.velocity * delta_time;
+                    } else {
+                        marker.position[1] = position;
+                    }
+                }
+            }
+
+
             local.translation[0] = marker.position[0];
             local.translation[1] = marker.position[1];
 
@@ -162,8 +297,7 @@ impl System<()> for QixSystem {
             local.scale[1] = marker.size;
         }
     }
-
-}
+    }
 
 fn gen_rectangle(w: f32, h: f32) -> Vec<VertexPosNormal> {
     let data: Vec<VertexPosNormal> = vec![VertexPosNormal {

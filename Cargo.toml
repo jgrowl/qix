@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["Jonathan Rowlands"]
 
 [dependencies]
-amethyst = "*"
+# amethyst = "*"
+amethyst = {git="https://github.com/amethyst/amethyst.git", branch="develop"}

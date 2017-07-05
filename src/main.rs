@@ -3,7 +3,9 @@ extern crate amethyst;
 use amethyst::{Application, Event, State, Trans, VirtualKeyCode, WindowEvent};
 use amethyst::asset_manager::AssetManager;
 use amethyst::gfx_device::DisplayConfig;
-use amethyst::ecs::{World, Join, VecStorage, Component, RunArg, System};
+// use amethyst::ecs::{World, Join, VecStorage, Component, RunArg, System};
+use amethyst::ecs::{Component, VecStorage, Fetch, FetchMut, Join, System, WriteStorage, World};
+
 use amethyst::ecs::components::{Mesh, LocalTransform, Texture, Transform};
 use amethyst::ecs::resources::{Camera, InputHandler, Projection, Time};
 use amethyst::ecs::systems::TransformSystem;
@@ -14,7 +16,7 @@ struct Qix;
 
 impl State for Qix {
     fn on_start(&mut self, world: &mut World, assets: &mut AssetManager, pipe: &mut Pipeline) {
-        use amethyst::ecs::Gate;
+        // use amethyst::ecs::Gate;
 
         use amethyst::ecs::resources::{Camera, InputHandler, Projection, ScreenDimensions};
         use amethyst::renderer::Layer;
@@ -27,8 +29,8 @@ impl State for Qix {
         pipe.layers.push(layer);
 
         {
-            let dim = world.read_resource::<ScreenDimensions>().pass();
-            let mut camera = world.write_resource::<Camera>().pass();
+            let dim = world.read_resource::<ScreenDimensions>();
+            let mut camera = world.write_resource::<Camera>();
             let aspect_ratio = dim.aspect_ratio;
             let eye = [0., 0., 0.1];
             let target = [0., 0., 0.];
@@ -64,7 +66,7 @@ impl State for Qix {
         // Create a marker entity
         let mut marker = Marker::new();
         marker.size = 0.02;
-        world.create_now()
+        world.create_entity()
             .with(square.clone())
             .with(marker)
             .with(LocalTransform::default())
@@ -78,11 +80,11 @@ impl State for Qix {
                      _: &mut AssetManager,
                      _: &mut Pipeline)
         -> Trans {
-            use amethyst::ecs::Gate;
+            // use amethyst::ecs::Gate;
             use amethyst::ecs::resources::InputHandler;
 
-            let input = world.write_resource::<InputHandler>();
-            input.pass().update(events);
+            let mut input = world.write_resource::<InputHandler>();
+            input.update(events);
 
             for e in events {
                 match **e {
@@ -115,7 +117,7 @@ impl Marker {
         Marker {
             size: 1.0,
             position: [0.5,1.0],
-            velocity: 1.
+            velocity: 0.25
         }
     }
 }
@@ -128,20 +130,32 @@ struct QixSystem;
 
 unsafe impl Sync for QixSystem {}
 
-impl System<()> for QixSystem {
-    fn run(&mut self, arg: RunArg, _: ()) {
+impl<'a> System<'a> for QixSystem {
+    type SystemData = (
+        WriteStorage<'a, Marker>, 
+        WriteStorage<'a, LocalTransform>,
+        FetchMut<'a, Camera>, 
+        Fetch<'a, Time>,
+        FetchMut<'a, InputHandler>);
+    fn run(&mut self, (mut markers, mut locals, mut camera, time, mut input): Self::SystemData) {
+//         }
+// }
+//
+//
+// impl System<()> for QixSystem {
+//     fn run(&mut self, arg: RunArg, _: ()) {
 
-        use amethyst::ecs::Gate;
+        // use amethyst::ecs::Gate;
         use amethyst::ecs::resources::{Camera, InputHandler, Projection, Time};
         // mut score
-        let (mut markers, locals, camera, time, input) = arg.fetch(|w| {
-            (w.write::<Marker>(),
-            w.write::<LocalTransform>(),
-            w.read_resource::<Camera>(),
-            w.read_resource::<Time>(),
-            w.read_resource::<InputHandler>())
-                // ,w.write_resource::<Score>()
-        });
+        // let (mut markers, locals, camera, time, input) = arg.fetch(|w| {
+        //     (w.write::<Marker>(),
+        //     w.write::<LocalTransform>(),
+        //     w.read_resource::<Camera>(),
+        //     w.read_resource::<Time>(),
+        //     w.read_resource::<InputHandler>())
+        //         // ,w.write_resource::<Score>()
+        // });
 
         // Get left and right boundaries of the screen
         let (left_bound, right_bound, top_bound, bottom_bound) = match camera.proj {
@@ -151,7 +165,7 @@ impl System<()> for QixSystem {
 
         let delta_time = time.delta_time.subsec_nanos() as f32 / 1.0e9;
 
-        let mut locals = locals.pass();
+        // let mut locals = locals;
 
         #[derive(PartialEq, Eq)]
         enum Side {
@@ -176,85 +190,86 @@ impl System<()> for QixSystem {
                 side = Side::Bottom
             }
 
+
             if side == Side::Bottom {
-                if input.key_down(VirtualKeyCode::Right) {
-                    let new_position = marker.position[0] + marker.velocity * delta_time;
-                    if new_position > 1. {
-                        marker.position[0] = 1.;
-                        marker.position[1] -= marker.velocity * delta_time
-                    } else {
-                        marker.position[0] = new_position;                    
-                    }
+                if input.key_is_pressed(VirtualKeyCode::Right) {
+                    let position = marker.position[0] + marker.velocity * delta_time;
+                    marker.position[0] = if position >= 1. { 1. } else {position}
+                    // if new_position >= 1. {
+                    //     marker.position[0] = 1.;
+                    // } else {
+                    //     marker.position[0] = new_position;
+                    // }
                 }
 
-                if input.key_down(VirtualKeyCode::Left) {
-                    let new_position = marker.position[0] - marker.velocity * delta_time;
-                    if new_position < 0. {
-                        marker.position[0] = 0.;
-                        marker.position[1] -= marker.velocity * delta_time
-                    } else {
-                        marker.position[0] = new_position;
-                    }
+                if input.key_is_pressed(VirtualKeyCode::Left) {
+                    let position = marker.position[0] - marker.velocity * delta_time;
+                    marker.position[0] = if position <= 0. { 0.} else {position}
+                    // if new_position <= 0. {
+                    //     marker.position[0] = 0.;
+                    // } else {
+                    //     marker.position[0] = new_position;
+                    // }
                 }
             } else if side == Side::Left {
-                if input.key_down(VirtualKeyCode::Up) {
+                if input.key_is_pressed(VirtualKeyCode::Up) {
                     let position = marker.position[1] - marker.velocity * delta_time;
-                    if position < 0. {
-                        marker.position[1] = 0.;
-                        marker.position[0] += marker.velocity * delta_time
-                    } else {
-                        marker.position[1] = position;
-                    }
+                    marker.position[1] = if position <= 0. {0.} else {position}
+                    // if position <= 0. {
+                    //     marker.position[1] = 0.;
+                    // } else {
+                    //     marker.position[1] = position;
+                    // }
                 }
 
-                if input.key_down(VirtualKeyCode::Down) {
+                if input.key_is_pressed(VirtualKeyCode::Down) {
                     let position = marker.position[1] + marker.velocity * delta_time;
-                    if position > 1. {
-                        marker.position[1] = 1.;
-                        marker.position[0] += marker.velocity * delta_time;
-                    } else {
-                        marker.position[1] = position;
-                    }
+                    marker.position[1] = if position >= 1. { 1. } else {position}
+                    // if position >= 1. {
+                    //     marker.position[1] = 1.;
+                    // } else {
+                    //     marker.position[1] = position;
+                    // }
                 }
             } else if side == Side::Top {
-                if input.key_down(VirtualKeyCode::Left) {
+                if input.key_is_pressed(VirtualKeyCode::Left) {
                     let position = marker.position[0] - marker.velocity * delta_time;
-                    if position < 0. {
-                        marker.position[0] = 0.;
-                        marker.position[1] += marker.velocity * delta_time
-                    } else {
-                        marker.position[0] = position;
-                    }
+                    marker.position[0] = if position <= 0. { 0. } else { position }
+                    // if position <= 0. {
+                    //     marker.position[0] = 0.;
+                    // } else {
+                    //     marker.position[0] = position;
+                    // }
                 }
 
-                if input.key_down(VirtualKeyCode::Right) {
+                if input.key_is_pressed(VirtualKeyCode::Right) {
                     let position = marker.position[0] + marker.velocity * delta_time;
-                    if position > 1. {
-                        marker.position[0] = 1.;
-                        marker.position[1] += marker.velocity * delta_time;
-                    } else {
-                        marker.position[0] = position;
-                    }
+                    marker.position[0] = if position >= 1. { 1. } else { position }
+                    // if position >= 1. {
+                    //     marker.position[0] = 1.;
+                    // } else {
+                    //     marker.position[0] = position;
+                    // }
                 }
             } else if side == Side::Right {
-                if input.key_down(VirtualKeyCode::Down) {
+                if input.key_is_pressed(VirtualKeyCode::Down) {
                     let position = marker.position[1] + marker.velocity * delta_time;
-                    if position > 1. {
-                        marker.position[1] = 1.;
-                        marker.position[0] -= marker.velocity * delta_time
-                    } else {
-                        marker.position[1] = position;
-                    }
+                    marker.position[1] = if position >= 1. { 1. } else { position }
+                    // if position >= 1. {
+                    //     marker.position[1] = 1.;
+                    // } else {
+                    //     marker.position[1] = position;
+                    // }
                 }
 
-                if input.key_down(VirtualKeyCode::Up) {
+                if input.key_is_pressed(VirtualKeyCode::Up) {
                     let position = marker.position[1] - marker.velocity * delta_time;
-                    if position < 0. {
-                        marker.position[1] = 0.;
-                        marker.position[0] -= marker.velocity * delta_time;
-                    } else {
-                        marker.position[1] = position;
-                    }
+                    marker.position[1] = if position <=0. {0.} else { position }
+                    // if position <= 0. {
+                    //     marker.position[1] = 0.;
+                    // } else {
+                    //     marker.position[1] = position;
+                    // }
                 }
             }
 
@@ -305,7 +320,9 @@ fn main() {
     let config = DisplayConfig::default();
     let mut game = Application::build(Qix, config)
         .register::<Marker>()
-        .with::<QixSystem>(QixSystem, "QixSystem", 1)
+        // .with::<QixSystem>(QixSystem, "QixSystem", 1)
+        .with::<QixSystem>(QixSystem, "pong_system", &[])
+        .with::<TransformSystem>(TransformSystem::new(), "transform_system", &["pong_system"])
         .done();
     game.run();
 }

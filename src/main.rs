@@ -18,9 +18,9 @@ use amethyst::ecs::resources::{Camera, InputHandler, Projection, Time};
 use amethyst::ecs::systems::TransformSystem;
 use amethyst::renderer::{Pipeline, VertexPosNormal};
 
-struct Qix;
+struct QixState;
 
-impl State for Qix {
+impl State for QixState {
     fn on_start(&mut self, world: &mut World, assets: &mut AssetManager, pipe: &mut Pipeline) {
         use amethyst::ecs::resources::{Camera, InputHandler, Projection, ScreenDimensions};
         use amethyst::renderer::Layer;
@@ -78,6 +78,19 @@ impl State for Qix {
             .with(LocalTransform::default())
             .with(Transform::default())
             .build();
+
+
+        // Create the Qix 
+        let mut qix = Qix::new();
+        world.create_entity()
+            .with(square.clone())
+            .with(Position{x: 0.5, y: 0.5})
+            .with(Velocity{x: 0.0, y: 0.0})
+            .with(qix)
+            .with(LocalTransform::default())
+            .with(Transform::default())
+            .build();
+
     }
 
     fn handle_events(&mut self,
@@ -152,6 +165,21 @@ struct Position {
 }
 
 impl Component for Position {
+    type Storage = VecStorage<Self>;
+}
+
+#[derive(Debug)]
+struct Qix {
+    pub size: f32
+}
+
+impl Qix {
+    fn new() -> Qix {
+        Qix{ size: 0.04 }
+    }
+}
+
+impl Component for Qix {
     type Storage = VecStorage<Self>;
 }
 
@@ -321,9 +349,10 @@ struct RenderSystem;
 
 impl<'a> System<'a> for RenderSystem {
     type SystemData = (WriteStorage<'a, Marker>,
+                       WriteStorage<'a, Qix>,
                        WriteStorage<'a, Position>,
                        WriteStorage<'a, LocalTransform>);
-    fn run(&mut self, (mut markers, mut positions, mut locals): Self::SystemData) {
+    fn run(&mut self, (mut markers, mut qixs, mut positions, mut locals): Self::SystemData) {
         for (marker, position, local) in (&mut markers, &mut positions, &mut locals).join() {
             local.translation[0] = position.x;
             local.translation[1] = position.y;
@@ -331,6 +360,15 @@ impl<'a> System<'a> for RenderSystem {
             local.scale[0] = marker.size;
             local.scale[1] = marker.size;
         }
+
+        for (qix, position, local) in (&mut qixs, &mut positions, &mut locals).join() {
+            local.translation[0] = position.x;
+            local.translation[1] = position.y;
+
+            local.scale[0] = qix.size;
+            local.scale[1] = qix.size;
+        }
+
     }
 }
 
@@ -370,9 +408,10 @@ fn gen_rectangle(w: f32, h: f32) -> Vec<VertexPosNormal> {
 
 fn main() {
     let config = DisplayConfig::default();
-    let mut game = Application::build(Qix, config)
+    let mut game = Application::build(QixState, config)
         .register::<Position>()
         .register::<Velocity>()
+        .register::<Qix>()
         .register::<Marker>()
         .with::<QixSystem>(QixSystem, "qix_system", &[])
         .with::<UpdatePos>(UpdatePos, "update_position_system", &[])
